@@ -465,7 +465,7 @@ plot.neurodyn <- function(fit, add.prior = TRUE, true.alphas = NULL, tilt.prior 
     
 }
 
-## code synthetic data under the assumed model. AB alpha curves are either flat or sinusoidal. 
+## code to sample an alpha curve, needed by the summary() and plot() functions. Not to be used as stand alone
 dynamic.model.simu <- function(bin.mids = seq(12.5,1000,25), bin.width = 25, lengthScale = c(75, 125, 200, 300, 500), lsPrior = rep(1/length(lengthScale),length(lengthScale)), hyper = list(prec = c(1,1), sig0 = 1.87), nsamp = 1e3){
     
     sig0 <- hyper$sig0
@@ -516,6 +516,7 @@ dynamic.model.simu <- function(bin.mids = seq(12.5,1000,25), bin.width = 25, len
     return(list(lsprob = LSPROB, alpha.pred = ALPHA_PRED, prec = PREC))
 }
 
+## code to simulate a Poisson process with firing rate lambda
 rPoiProc <- function(lambda, time.bins = 0:1000){
     ## time measured in milliseconds. lambda is a vector of values of
     ## a rate function (in Hz) recorded at the mid-points of time.bins
@@ -528,17 +529,20 @@ rPoiProc <- function(lambda, time.bins = 0:1000){
     return(runif(sum(nspikes.bins), time.bins[bins.with.spikes], time.bins[1+bins.with.spikes]))
 }
 
+## code to simulate a flat curve with a random vertical position drawn from a mixture of uniform densities
 flatFn <- function(intervals = list(c(0,1)), wts = 1, time.pts = 1:1e3 - .5){
     k <- sample(length(wts), 1, prob = wts)
     return(rep(runif(1, intervals[[k]][1], intervals[[k]][2]), length(time.pts)))
 }
 
+## code to simulate a sine curve with random period, amplitude and phase shift
 sineFn <- function(span = c(0, 1), period.range = c(400, 1000), time.pts = 1:1e3 - 0.5){
     period <- runif(1, period.range[1], period.range[2])
     jit <- runif(1, 0, period)
     return(span[1] + diff(span) * (1 + sin(2 * pi * (jit + time.pts) / period)) / 2)
 }
 
+## code to simulate synthetic data under the assumed model. The true alpha curves are either flat or sinusoidal
 rsynth <- function(ntrials = c(10, 10, 10), time.bins = 0:1000, lambda.A = 400, lambda.B = 100, pr.flat = 0.5, intervals = list(c(0,1)), wts = 1, span = c(0,1), period.range = c(400, 1000)){
     spiketimes <- list()
     spiketimes$A <- replicate(ntrials[1], rPoiProc(lambda.A, time.bins))
@@ -556,11 +560,13 @@ rsynth <- function(ntrials = c(10, 10, 10), time.bins = 0:1000, lambda.A = 400, 
     return(list(spiketimes = spiketimes, alphas = alphas, lambdas = lambdas, time.pts = time.pts))
 }
 
-
+## auxiliary code for bin counting of spiketimes
 bin.counter <- function(x, b) return(diff(sapply(b, function(a) sum(x <= a))))
 
+## auxiliary code for summing in log-scale
 logsum <- function(lx) return(max(lx) + log(sum(exp(lx - max(lx)))))
 
+## auxiliary code for drawing n random vectors from a Dirichlet distribution
 rDirichlet <- function(n, alpha){
     l <- length(alpha)
     x <- matrix(rgamma(l * n, alpha), ncol = l, byrow = TRUE)
@@ -568,8 +574,10 @@ rDirichlet <- function(n, alpha){
     return(x/sm)
 }
 
+## auxiliary code for making n random draws from the inverse gamma distribution
 rinvgamma <-function(n,shape, scale = 1) return(1/rgamma(n = n, shape = shape, rate = scale))
 
+## auxiliary code for making n random draws from a truncated gamma distribution
 rtruncgamma <- function(n, low = 0, up = Inf, ...){
     unifs <- runif(n)
     plo <- pgamma(low, ...)
@@ -580,6 +588,7 @@ rtruncgamma <- function(n, low = 0, up = Inf, ...){
     #return(qgamma(lplo + log1p(unifs*(expm1(lpup - lplo))), ..., log.p = TRUE))
 }
 
+## code for smoothing counts via adaptive smoothing in GAM
 smoogam <- function(x){
     require(mgcv)
     T <- nrow(x)
@@ -598,9 +607,10 @@ smoogam <- function(x){
     mean = firingrate.mean, vari = firingrate.vari))
 }
 
+## auxiliary code that functions as the inverse of concatenation.
 drop.item <- function(x, j) return(x[-match(j, x, nomatch = length(x) + 1)])
 
-
+## rank-1 Cholesky update code
 rank1up <- function(R, u){ # return chol(crossprod(R) + tcrossprod(u))
     n <- length(u)
     for(k in 1:n){
@@ -618,7 +628,7 @@ rank1up <- function(R, u){ # return chol(crossprod(R) + tcrossprod(u))
     return(R)
 }
 
-
+## auxiliary code for counting swings in a curve
 swing.counter <- function(alpha, width){
     unique.vals <- sort(unique(alpha))
     n.unique <- length(unique.vals)
@@ -663,10 +673,10 @@ swing.counter <- function(alpha, width){
     return(max(swings))
 }
 
+## auxiliary code for creating transparent color codes
 tcol <- Vectorize(function(col, alpha = 1) {x <- col2rgb(col)/255; return(rgb(x[1],x[2],x[3],alpha = alpha))}, "col")
 
 #### Wrapper function for real data runs ####
-
 fitter.fn <- function(triplet, triplet.meta, start.time = 0, end.time = 1000, bw = 25, on.reward = TRUE, go.by.soff = TRUE, save.figure = FALSE, save.out = FALSE, tilt = TRUE, data.path = "http://www2.stat.duke.edu/~st118/Jenni/STCodes/Data", local.pull = FALSE, save.path = "./", ...){
     
     if(save.out | save.figure) if(!dir.exists(save.path)) stop("Invalid directory for storing summary and/or figures")
