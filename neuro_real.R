@@ -1,4 +1,3 @@
-setwd("~/Desktop/Research/Neuro/CodesNew/")
 source("dynamic_neural_model.R")
 triplet.meta <- read.csv("~/Desktop/Research/Neuro/363triplets.csv")
 local.path <- "~/Desktop/Research/Neuro/"
