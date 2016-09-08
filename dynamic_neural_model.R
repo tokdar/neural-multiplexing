@@ -1,8 +1,12 @@
+#### Main code for fitting the dynamic multiplexing model ####
+
 # Inputs:
 ## spike.counts: list of 5 objects: Acounts, Bcounts, ABcounts, bin.mids and bin.width. Acounts is a matrix of spike counts, each column is a single A trial, each row is a bin. Bcounts and ABcounts are defined similarly. bin.mids gives mid points of the bins used for spike counting. bin.width is a scalar giving the width of the bins. Time is measured in ms.
 ## lengthScale: a vector giving the length-scale values to consider for the GP prior on the eta = log(alpha / (1 - alpha)) curves. Measured in ms. Larger length-scale produces smoother/flatter curves, whereas smaller length-scales produce wavy curves.
 ## lsPrior: a vector of positive number of the same length as lengthScale. Gives the prior precision (= sum(lsPrior)) and prior expectation (= lsPrior / sum(lsPrior)) for ls.probs which is the truplet's unknown vector of weights on the length-scale to be inferred from data.
 ## (prec, w1, w2): the overall value of eta is modeled as a mixture of Gaussians, whose behavior is governed by (perc, w1, w2). Higher prec gives larger number of relatively important mixture components, smaller prec gives one or two dominant components.
+
+## Output: returns a list object assigned class 'neurodyn' which contains posterior draws on the length-scale distribution, sound A average firing rate lambda.A, sound B average firing lambda.B, each individual AB trial alpha curve, a predicted alpha curve for a hypothetical AB trial and some other basic information
 
 dynamic.model.fit <- function(spike.counts, lengthScale = c(75, 125, 200, 300, 500), lsPrior = rep(1/length(lengthScale),length(lengthScale)), hyper = list(prec = c(1,1), sig0 = 1.87), burnIn = 1e3, nsamp = 1e3, thin = 4, plot = FALSE, verbose = TRUE){
     
@@ -308,6 +312,14 @@ dynamic.model.fit <- function(spike.counts, lengthScale = c(75, 125, 200, 300, 5
                 
 }
 
+## Code for useful summarization of the postrior draws from model fit. Specifically, creates summaries of alpha.bar and alpha.minmax of the future AB trial
+# Inputs: 
+## fit: a 'neurodyn' object returned by dynamic.model.fit()
+## cut.width: posterior predictive distributions of alpha.bar and alpha.minmax are each summarized by a histogram over (0,1). cut.width gives the width of the histogram bin breaks
+## tilt.prior: TRUE/FALSE. If TRUE then the posterior (preditive) draws are reweighted in order to mimic model fitting under a uniform prior on alpha.minmax
+## mesh.tile: Needed only when tilt.prior = TRUE and best to set as cut.width. The uniformity of the tilted alpha.minmax prior is assessed by looking at the prior histogram whose bin width is set by mesh.tilt
+## nprior: number of prior draws to use in enforcing tilting. Needed only when tilt.prior = TRUE
+
 summary.neurodyn <- function(fit, cut.width = 0.1, tilt.prior = FALSE, mesh.tilt = 0.1, nprior = fit$mcmc["nsamp"]){
     nsamp <- fit$mcmc["nsamp"]
     alpha.post.pred <- fit$alpha.pred
@@ -344,6 +356,8 @@ summary.neurodyn <- function(fit, cut.width = 0.1, tilt.prior = FALSE, mesh.tilt
     return(sm)
     
 }
+
+## pretty plotting of the dynamic.model.fit() output
 
 plot.neurodyn <- function(fit, add.prior = TRUE, true.alphas = NULL, tilt.prior = FALSE, mesh.tilt = 0.1, nprior = fit$mcmc["nsamp"]){
     
@@ -451,6 +465,7 @@ plot.neurodyn <- function(fit, add.prior = TRUE, true.alphas = NULL, tilt.prior 
     
 }
 
+## code synthetic data under the assumed model. AB alpha curves are either flat or sinusoidal. 
 dynamic.model.simu <- function(bin.mids = seq(12.5,1000,25), bin.width = 25, lengthScale = c(75, 125, 200, 300, 500), lsPrior = rep(1/length(lengthScale),length(lengthScale)), hyper = list(prec = c(1,1), sig0 = 1.87), nsamp = 1e3){
     
     sig0 <- hyper$sig0
