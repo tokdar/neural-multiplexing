@@ -1,4 +1,3 @@
-setwd("~/Desktop/Research/Neuro/Azeem/DPMMM-master/Code/")
 source("dynamic_neural_model.R")
 
 synth.data <- rsynth(ntrials = c(15, 20, 20), pr.flat = 1, intervals = list(c(0,.1), c(.45,.55), c(.9,1)), wts = c(1/3, 1/3, 1/3), span = c(.1,.9), period = c(500, 1500))
