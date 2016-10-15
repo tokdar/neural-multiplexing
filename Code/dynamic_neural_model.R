@@ -41,7 +41,12 @@ dynamic.model.fit <- function(spike.counts, lengthScale = c(75, 125, 200, 300, 5
     
     rA <- am.1; sA <- bm.1
     rB <- am.2; sB <- bm.2
-    
+    # shape parameters that are too small are causing rgamma
+    # to sample zero, which is causing errors later
+    # to fix this, we will replace very small shape parameters
+    # with a fixed value
+    rA[rA < 1e-2] <- 1e-2
+    rB[rB < 1e-2] <- 1e-2    
     lambda.A <- rgamma(nbins, shape = rA, rate = sA)
     lambda.B <- rgamma(nbins, shape = rB, rate = sB)
     
